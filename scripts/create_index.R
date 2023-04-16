@@ -10,6 +10,7 @@ suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(Matrix))
 suppressPackageStartupMessages(library(biomaRt))
 
+
 option_list <- list(
   make_option(c("-n", "--data_name"), type = "character", default = NULL, help = "Name of dataset"),
   make_option(c("-p", "--pseudobulk_psi"),
@@ -29,6 +30,14 @@ option_list <- list(
   make_option(c("-d", "--psi_diff_cutoff"), type = "numeric", default = 0.2, help = "Minimum PSI difference from dataset average which will lead to the node being kept in the index, default = 0.2"),
   make_option(c("-s", "--species"),
     type = "character", default = NULL, help = "ENSEMBL name of species to get gene annotations"
+  ),
+  make_option(c("-m", "--metadata"),
+    type = "character", default = NULL,
+    help = "Metadata file linking cell number to cell type to create scASfind index, must contain a column 'cell_id' indicating cell id matching the pseudobulk_psi file, tab-deliminated"
+  ),
+  make_option(c("-c", "--cell_type_col"),
+    type = "character", default = NULL,
+    help = "Column indicating cell type in metadata file"
   )
 )
 
@@ -42,8 +51,13 @@ OUTPUT <- opt$output
 NUM_READS_MIN <- opt$num_reads_min
 PSI_DIFF_CUTOFF <- opt$psi_diff_cutoff
 SPECIES <- opt$species
+METADATA <- opt$metadata
+CELL_TYPE_COL <- opt$cell_type_col
 
-######################## Functions build various inputs for scASfind
+########################
+## Step 1
+## Build various input matrices
+########################
 
 # build original PSI matrix from MicroExonator output file *.psi.tsv
 
@@ -157,13 +171,12 @@ node_list_all <- ni[which(ni$Node_id %in% node_list), ]
 node_list_all$Gene_num <- gsub("\\..*$", "", node_list_all$Gene)
 
 # install.packages('XML', repos = 'http://www.omegahat.net/R') BiocManager::install('biomaRt')
-library("biomaRt")
 
-ensembl <- useMart("ensembl")
-ensembl <- useDataset(paste0(SPECIES, "_gene_ensembl"), mart = ensembl)
+ensembl <- biomaRt::useMart("ensembl")
+ensembl <- biomaRt::useDataset(paste0(SPECIES, "_gene_ensembl"), mart = ensembl)
 
 # takes a few minutes to match gene to name
-gene_name <- getBM(attributes = c("ensembl_gene_id", "external_gene_name"), filters = "ensembl_gene_id", values = node_list_all$Gene_num, mart = ensembl)
+gene_name <- biomaRt::getBM(attributes = c("ensembl_gene_id", "external_gene_name"), filters = "ensembl_gene_id", values = node_list_all$Gene_num, mart = ensembl)
 
 # de-duplicate and match gene name using gene id
 gene_name <- gene_name[!duplicated(gene_name$ensembl_gene_id), ]
@@ -183,3 +196,39 @@ saveRDS(matrix.below, paste(OUTPUT, "_matrix_below.rds", sep = ""))
 saveRDS(diff_cut, paste(OUTPUT, "_diff_cut.rds", sep = ""))
 saveRDS(stats, paste(OUTPUT, "_stats.rds", sep = ""))
 saveRDS(gene_node_all, paste(OUTPUT, "_gene_node_all.rds", sep = ""))
+
+
+
+########################
+## Step 2
+## Create scASfind index
+########################
+
+meta <- readr::read_tsv(METADATA)
+rownames(meta) <- meta$cell_id
+
+if (!(CELL_TYPE_COL %in% colnames(meta))) {
+  warning(paste0("Column indicating cell type ", CELL_TYPE_COL, " not in metadata, please check"))
+  message("Exit script, please re-build index from the constructed matrices")
+} else {
+
+  # match cell ids
+  meta <- meta[which(rownames(meta) %in% colnames(matrix.above)), ]
+  meta <- meta[match(colnames(matrix.above), rownames(meta)), ]
+
+  # make above index
+  above_idx <- scASfind::buildAltSpliceIndex(psival = matrix.above, metadata = meta, dataset.name = "above", column.label = CELL_TYPE_COL, qb = 2)
+
+  # add index metadata
+  above_idx_withmeta <- scASfind::addIndexMeta(object = above_idx, stats = stats, node_list = gene_node_all, diff_cut = diff_cut)
+
+  # make below index
+  below_idx <- scASfind::buildAltSpliceIndex(psival = matrix.below, metadata = meta, dataset.name = "below", column.label = CELL_TYPE_COL, qb = 2)
+
+  # combine above and below index to final scASfind index object
+  merged_idx <- scASfind::mergeDataset(object = above_idx_withmeta, new.object = below_idx)
+
+  scASfind::saveObject(merged_idx, paste(OUTPUT, "_combined_scASfind_index.rds", sep = ""))
+
+  message("Finish creating scASfind index")
+}
