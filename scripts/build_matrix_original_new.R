@@ -1,18 +1,19 @@
 #!/usr/bin/env Rscript
 
 #######################################
-## scfindME build a splicing index
-## ysong 07 Mar 2022
+## scASfind build a splicing index
+## ysong 14 Apr 2022
 #######################################
 
-suppressMessages(library(optparse))
-suppressMessages(library(tidyverse))
-suppressMessages(library(Matrix))
+suppressPackageStartupMessages(library(optparse))
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(Matrix))
+suppressPackageStartupMessages(library(biomaRt))
 
 option_list <- list(
   make_option(c("-n", "--data_name"), type = "character", default = NULL, help = "Name of dataset"),
   make_option(c("-p", "--pseudobulk_psi"),
-    type = "character", default = NULL, help = "Combined pseudobulk psi matrix as input, tab-deliminated"
+    type = "character", default = NULL, help = "Combined pseudobulk psi matrix as input, usually with .psi.tsv extensions, tab-deliminated"
   ),
   make_option(c("-i", "--node_info"),
     type = "character", default = NULL, help = "Node information input from Whippet, tab-deliminated"
@@ -26,8 +27,9 @@ option_list <- list(
     help = "Minimum number of total reads covering node, which will be included in the output. This is for ensure meaningful psi quantification, default = 10"
   ),
   make_option(c("-d", "--psi_diff_cutoff"), type = "numeric", default = 0.2, help = "Minimum PSI difference from dataset average which will lead to the node being kept in the index, default = 0.2"),
-  make_option(c("-s", "--species"), 
-              type = 'character', default = NULL, help = 'ENSEMBL name of species to get gene annotations') 
+  make_option(c("-s", "--species"),
+    type = "character", default = NULL, help = "ENSEMBL name of species to get gene annotations"
+  )
 )
 
 # parse input
@@ -39,11 +41,11 @@ NODE <- opt$node_info
 OUTPUT <- opt$output
 NUM_READS_MIN <- opt$num_reads_min
 PSI_DIFF_CUTOFF <- opt$psi_diff_cutoff
-species = opt$species
+SPECIES <- opt$species
 
-######################## Functions build various inputs for scfindME
+######################## Functions build various inputs for scASfind
 
-# build original matrix function
+# build original PSI matrix from MicroExonator output file *.psi.tsv
 
 message("Start building inputs for scASfind index")
 
@@ -56,48 +58,61 @@ matrix.original <- data %>%
   dplyr::group_by(Sample) %>%
   dplyr::distinct(Gene_node, .keep_all = TRUE) %>%
   dplyr::select(Sample, Gene_node, Total_Reads, Psi) %>%
-  dplyr::mutate(Filter = case_when(Total_Reads < NUM_READS_MIN ~ "DROP", Total_Reads >= NUM_READS_MIN ~ "KEEP", TRUE ~ NA_character_)) %>%
+  dplyr::mutate(Filter = case_when(Total_Reads < NUM_READS_MIN ~ "DROP", Total_Reads >= NUM_READS_MIN ~ "KEEP", TRUE ~ NA_character_)) %>% ## keep only those PSI qualifications by >= NUM_READS_MIN as they have an acceptable confidence interval
   dplyr::filter(Filter == "KEEP") %>%
   dplyr::select(Sample, Gene_node, Psi) %>%
   dplyr::ungroup(Sample) %>%
   dplyr::group_by(Gene_node) %>%
   tidyr::pivot_wider(names_from = Sample, values_from = Psi)
 
-message("Matrices constructed, scailing")
+message("Matrices constructed, performing scailing")
 
 df <- data.frame(matrix.original, row.names = matrix.original$Gene_node)
 dm <- as.matrix(df[, -1])
 mean <- rowMeans(dm, na.rm = TRUE)
+
+# get differential from dataset mean PSI per node
+
 matrix.scaled_diff <- dm - mean
+
+# times a scale factor 100 for accurate encoding of absolute PSI values
 matrix.scaled_diff <- matrix.scaled_diff * 100
+
 # drop all-na rows
+
 matrix.scaled_diff <- matrix.scaled_diff[which(rowSums(is.na(matrix.scaled_diff)) < ncol(matrix.scaled_diff)), ]
 matrix.scaled_diff_selected <- data.frame(row.names = rownames(matrix.scaled_diff))
 
+# initialize diff_cut matrix to store index of nodes with PSI = dataset mean, to distinguish from nodes with PSI not quantified
 diff_cut <- matrix(0, nrow = nrow(matrix.scaled_diff), ncol = ncol(matrix.scaled_diff))
+
+# keep only values with above psi_diff_cutoff
 
 for (cell in seq(1, ncol(matrix.scaled_diff))) {
   tv <- matrix.scaled_diff[, cell]
   tvd <- diff_cut[, cell]
-  temp <- which(abs(tv) < 0.2 * 100)
+  temp <- which(abs(tv) < psi_diff_cutoff * 100)
   tv[temp] <- NA
   tvd[temp] <- 1
   matrix.scaled_diff_selected[[colnames(matrix.scaled_diff)[cell]]] <- tv
   diff_cut[, cell] <- tvd
 }
 
-# 1 in diff_cut means dropped calls
+# 1 in diff_cut means dropped calls due to equal to mean
 
 rownames(diff_cut) <- rownames(matrix.scaled_diff_selected)
 colnames(diff_cut) <- colnames(matrix.scaled_diff_selected)
 
+# remove all na rows
 matrix.scaled_diff_selected <- matrix.scaled_diff_selected %>% filter(if_any(everything(), ~ !is.na(.)))
 
 diff_cut <- diff_cut[rownames(matrix.scaled_diff_selected), ]
 diff_cut <- Matrix(diff_cut, sparse = TRUE)
 
 matrix.above <- data.frame(row.names = rownames(matrix.scaled_diff_selected))
-# set na and below ones to zero
+
+# set PSI of NA and below ones to zero for the above index
+
 for (cell in seq(1, ncol(matrix.scaled_diff_selected))) {
   tv <- matrix.scaled_diff_selected[, cell]
   temp <- which(is.na(tv) | tv < 0)
@@ -106,7 +121,9 @@ for (cell in seq(1, ncol(matrix.scaled_diff_selected))) {
 }
 
 matrix.below <- data.frame(row.names = rownames(matrix.scaled_diff_selected))
-# set na and above ones to zero
+
+# set NA and above ones to zero for the below indes
+
 for (cell in seq(1, ncol(matrix.scaled_diff_selected))) {
   tv <- matrix.scaled_diff_selected[, cell]
   temp <- which(is.na(tv) | tv > 0)
@@ -115,12 +132,10 @@ for (cell in seq(1, ncol(matrix.scaled_diff_selected))) {
 }
 matrix.below <- matrix.below * (-1)
 
-
+# get mean and SD per node
 
 df <- data.frame(matrix.original, row.names = matrix.original$Gene_node)
 dm <- as.matrix(df[, -1])
-
-
 mean <- transform(dm, mean = apply(dm, 1, mean, na.rm = TRUE))
 sd <- transform(dm, SD = apply(dm, 1, sd, na.rm = TRUE))
 mean$SD <- sd$SD
@@ -128,6 +143,8 @@ mean <- mean[order(mean$SD), ]
 stats <- mean[, c("mean", "SD")]
 
 stats <- stats[which(rownames(stats) %in% rownames(matrix.scaled_diff_selected)), ]
+
+# get node annotations from ENSEMBL
 
 node_list <- rownames(matrix.scaled_diff_selected)
 
@@ -141,11 +158,11 @@ node_list_all$Gene_num <- gsub("\\..*$", "", node_list_all$Gene)
 
 # install.packages('XML', repos = 'http://www.omegahat.net/R') BiocManager::install('biomaRt')
 library("biomaRt")
-# listMarts()
-ensembl <- useMart("ensembl")
-ensembl <- useDataset(paste0(species, "_gene_ensembl"), mart = ensembl)
 
-# takes a few minuites to match gene to name
+ensembl <- useMart("ensembl")
+ensembl <- useDataset(paste0(SPECIES, "_gene_ensembl"), mart = ensembl)
+
+# takes a few minutes to match gene to name
 gene_name <- getBM(attributes = c("ensembl_gene_id", "external_gene_name"), filters = "ensembl_gene_id", values = node_list_all$Gene_num, mart = ensembl)
 
 # de-duplicate and match gene name using gene id

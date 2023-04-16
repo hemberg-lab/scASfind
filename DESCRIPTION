@@ -1,11 +1,26 @@
-Package: scfindME
+Package: scASfind
 Type: Package
-Title: This is a package that adaps "scfind", a search tool for single cell RNA-seq data by gene lists, to alternative splicing analysis
+Title: Identification of cell type-specific alternative splicing events using Single Cell RNA-Seq Data
 Version: 0.1.0
-Author: Yuyao Song, authors of scfind and authors of MicroExonator
-Maintainer: Yuyao Song <ys585@cam.ac.uk>
-Description: The emergence of large single cell RNA-seq(scRNA-seq) datasets facilitates biological discoveries at single-cell resolution. For single cell atlas to be useful to users from all disciplines, it should be organized in an accessible way. 'scfind' builds an index for scRNA-seq datasets and allows fast inqueries involving cell types and feature lists. scfindME is built on top of scfind and it adaps scfind to alternative splicing analysis, in addition to gene expression. Quantification of single cell alternative splicing events are performed by Whippet integreted in the workflow MicroExonator.
-License: MIT
+Authors@R: 
+  c(person(given = "Yuyao",
+           family = "Song",
+           role = c("aut", "cre"),
+           email = "ys585@cam.ac.uk"),
+    person(given = "Guillermo",
+           family = "Parada",
+           role = c("aut"),
+           email = "geparada88@gmail.com"),
+    person(given = "Jimmy",
+           family = "Lee",
+           role = c("aut"),
+           email = "tl7@sanger.ac.uk"),
+    person(given = "Martin",
+           family = "Hemberg",
+           role = c("aut"),
+           email = "martin.hemberg@gmail.com"))
+Description: The emergence of large single cell RNA-seq datasets facilitates biological discoveries at single-cell resolution. For single cell atlas to be useful to users from all disciplines, it should be organized in an accessible way. 'scfind' builds an index for scRNA-seq datasets and allows fast inqueries involving cell types and feature lists. `scASfind` is built on top of scfind and it adaps scfind to alternative splicing analysis, in addition to gene expression. Quantification of single cell alternative splicing events are performed by `Whippet` integreted in the workflow `MicroExonator`..
+License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Imports:
@@ -14,8 +29,8 @@ LinkingTo: Rcpp, RcppArmadillo
 Depends: R(>= 3.5)
 RcppModules: EliasFanoDB
 NeedsCompilation: yes
-RoxygenNote: 7.1.1
-URL: https://github.com/YY-SONG0718/scfindME
+RoxygenNote: 7.2.0
+URL: https://github.com/YY-SONG0718/scASfind
 Collate: 
     'AllGenerics.R'
     'CoreFunctions.R'

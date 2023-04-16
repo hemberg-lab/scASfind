@@ -16,7 +16,7 @@
 #' @importFrom methods new
 #'
 #' @importFrom Rcpp cpp_object_initializer
-#' @useDynLib scfindME
+#' @useDynLib scASfind
 #'
 
 buildAltSpliceIndex.PSI <- function(psival, metadata, dataset.name, column.label, qb = 2) {
@@ -85,7 +85,7 @@ setMethod("buildAltSpliceIndex",
 #' @name addIndexMeta
 #'
 #' @return an SCFind object with classic metadata components
-#' @useDynLib scfindME
+#' @useDynLib scASfind
 #'
 
 addIndexMeta.classic <- function(object, stats, node_list, diff_cut) {
@@ -580,7 +580,7 @@ setMethod("saveObject", definition = save.serialized.object)
 #' @return an \code{SCFind} object
 #' @name loadObject
 #'
-#' @useDynLib scfindME
+#' @useDynLib scASfind
 load.serialized.object <- function(filename) {
   object <- readRDS(filename)
   # Deserialize object

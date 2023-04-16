@@ -1,6 +1,9 @@
+.gitignore
+.git/
 scripts/*.tsv
 .Rproj.user
 .Rhistory
+.Rproj
 .RData
 .Ruserdata
 .ipynb_checkpoints

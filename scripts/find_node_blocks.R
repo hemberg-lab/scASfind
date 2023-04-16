@@ -1,7 +1,13 @@
 #!/usr/bin/env Rscript
 
-library(optparse)
-library(tidyverse)
+#######################################
+## scASfind detect coordinated spliced-in events
+## ysong 14 Apr 2022
+#######################################
+
+suppressPackageStartupMessages(library(optparse))
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(scASfind))
 
 option_list <- list(
   make_option(c("-n", "--data_name"),
@@ -10,11 +16,23 @@ option_list <- list(
   ),
   make_option(c("-i", "--index"),
     type = "character", default = NULL,
-    help = "Path to a complete scfindME index"
+    help = "Path to a complete scASfind index"
   ),
-    make_option(c("-t", "--node_types"),
+  make_option(c("-t", "--node_types", default = "CE,AD,AA,NA,RI"),
     type = "character", default = NULL,
     help = "Node types to consider when detecting blocks, split by comma"
+  ),
+  make_option(c("-m", "--mean_cutoff"),
+    type = "numeric", default = 0.1,
+    help = "Potential MXE Nodes are first filtered by having a difference of dataset-wise mean within the cutoff, default 0.1"
+  ),
+  make_option(c("-s", "--SD_cutoff"),
+    type = "numeric", default = 0.1,
+    help = "Potential MXE Nodes are first filtered by having a difference of dataset-wise SD within the cutoff, default 0.1"
+  ),
+  make_option(c("-p", "--pval_cutoff"),
+    type = "numeric", default = 0.05,
+    help = "Cut-off of P value of hypergeometric test for cell type significance of MXE pairs"
   ),
   make_option(c("-o", "--output"),
     type = "character", default = NULL,
@@ -29,9 +47,10 @@ name <- opt$data_name
 index_path <- opt$index
 output <- opt$output
 types <- opt$node_types
+mean_cutoff <- opt$mean_cutoff
+SD_cutoff <- opt$SD_cutoff
+pval_cutoff <- opt$pval_cutoff
 
-# library(scfindME)
-devtools::load_all("/nfs/research/irene/ysong/DATA/SCFIND/scfindME_package/scfindME")
 
 index <- loadObject(index_path)
 
@@ -45,11 +64,14 @@ node_types <- str_split(types, ",") %>% flatten_chr()
 
 block_num <- 1
 
-for (gene in all_genes) {
-  message(gene)
+message("Start looking for coordinated splice-in events")
 
+for (gene in all_genes) {
+
+  # get all encoded nodes per gene
   nodes <- geneNodes(index, gene, "Gene_name")
 
+  # how many nodes are in between consecutive records
   tbl <- index@metadata$stats[which(rownames(index@metadata$stats) %in% nodes$Node_id), ] %>%
     tibble::rownames_to_column("Node_id") %>%
     mutate(node_num = as.numeric(gsub("^.*_", "", Node_id))) %>%
@@ -63,64 +85,63 @@ for (gene in all_genes) {
     filter(Type %in% node_types)
 
   new_block <- data.frame()
+
   block_num <- 1
 
- if (nrow(tbl) > 2) {
-    
-      # first node in block
+  # if a gene has more than 2 nodes, enables it to test for node blocks
+  if (nrow(tbl) > 2) {
+
+    # first node in gene
     i <- 1
-
     avg <- tbl[i, "mean"]
-
     SD <- tbl[i, "SD"]
 
+    # start a new node block record
     new_block <- data.frame()
 
     while (i < nrow(tbl)) {
-        
-      if (abs(tbl[i + 1, "mean"] - avg) < 0.1 &
-        abs(tbl[i + 1, "SD"] - SD < 0.1)) {
-                  
+
+      # extend the node block by the next nodes
+
+      # first test for block pattern using mean and SD
+
+      if (abs(tbl[i + 1, "mean"] - avg) < mean_cutoff &
+        abs(tbl[i + 1, "SD"] - SD < SD_cutoff)) {
+
+        # add i+1 node to the block
         add_block <- tbl[i + 1, ]
 
         add_block$block_num <- block_num
-        
 
-        avg = (avg+add_block$mean)*0.5
-          
-
-        SD = (SD+add_block$SD)*0.5
-
+        # update node block average PSI and SD
+        avg <- (avg + add_block$mean) * 0.5
+        SD <- sqrt(SD^2 + add_block$SD^2)
 
         if (nrow(new_block) == 0) {
-            
+          # the node is the first to add to the block
           first_in_block <- tbl[i, ]
           first_in_block$block_num <- block_num
           new_block <- rbind(first_in_block, add_block)
-            
         } else {
-            
+          # the node is to extend an existing block
           new_block <- rbind(new_block, add_block)
-            
         }
-          
-        i <- i + 1 ## keep adding nodes to this block
-          
-      } else { # nothing more to add for this group
+        # proceed to next node in gene, keep adding nodes to this block
+        i <- i + 1
+      } else {
+
+        # the next node does not pass the pattern filter, nothing more to add for this block
 
         if (nrow(new_block) == 0) {
-            
+
+          # nothing passed the filter: go to next node in this gene
           i <- i + 1
           avg <- tbl[i, "mean"]
           SD <- tbl[i, "SD"]
-
-            
         } else if (nrow(new_block) > 0) {
 
-          # potential new block to be add
-          # check cell types specificities
-          # message('examining')
-          # message(block_num)
+          # potential new block to be added
+          # check cell type specificity
 
           block_now <- block_num
 
@@ -128,47 +149,42 @@ for (gene in all_genes) {
             dplyr::filter(block_num == block_now) %>%
             select(Node_id)
 
-          print(test_comb)
-
           skip_to_next <- FALSE
 
           condition <- tryCatch(
             {
-              sum(hyperQueryCellTypes(index, test_comb$Node_id)$pval < 0.1) >= 1
+              sum(scASfind::hyperQueryCellTypes(index, test_comb$Node_id)$pval < pval_cutoff) >= 1
             },
             error = function(e) {
               skip_to_next <<- TRUE
             }
-          ) # if the block is significant in some cell types
+          )
+
+          # if the block is significant in some cell types, add it to the results
 
           if (condition == TRUE) {
-              
-            
             message(paste("add block No. ", block_num, sep = ""))
-              
-            sig_cell_types <- hyperQueryCellTypes(index, test_comb$Node_id) %>% filter(pval < 0.05)
+
+            sig_cell_types <- scASfind::hyperQueryCellTypes(index, test_comb$Node_id) %>% filter(pval < 0.05)
 
             add_new_block <- merge(new_block, sig_cell_types, all = TRUE)
 
             all_blocks <- rbind(all_blocks, add_new_block)
 
-            message(paste("finish block ", block_num, " in gene ", gene, sep = ""))
+            # start a new block in this gene
 
             block_num <- block_num + 1
 
             new_block <- data.frame()
-            
+
             i <- i + 1
 
             avg <- tbl[i, "mean"]
 
             SD <- tbl[i, "SD"]
-
-            
           } else {
-
-            # message("skip block")
-            # message(block_num)
+            # the block is not specific in any cell types
+            # proceed to the next node
 
             i <- i + 1
 
@@ -176,10 +192,9 @@ for (gene in all_genes) {
 
             SD <- tbl[i, "SD"]
 
-            # no need to update block num
+            # no need to update block num becayse no new block is added in this gene
 
             new_block <- data.frame()
-
 
             next
           }
@@ -187,10 +202,10 @@ for (gene in all_genes) {
       }
     }
   }
-                               
 }
 
 all_blocks <- unique(all_blocks)
 
+message("Finish detecting coordinated spliced-in events")
 
 saveRDS(all_blocks, paste(output, "/", name, "_all_node_blocks.rds", sep = ""))
