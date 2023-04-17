@@ -105,7 +105,7 @@ diff_cut <- matrix(0, nrow = nrow(matrix.scaled_diff), ncol = ncol(matrix.scaled
 for (cell in seq(1, ncol(matrix.scaled_diff))) {
   tv <- matrix.scaled_diff[, cell]
   tvd <- diff_cut[, cell]
-  temp <- which(abs(tv) < psi_diff_cutoff * 100)
+  temp <- which(abs(tv) < PSI_DIFF_CUTOFF * 100)
   tv[temp] <- NA
   tvd[temp] <- 1
   matrix.scaled_diff_selected[[colnames(matrix.scaled_diff)[cell]]] <- tv
