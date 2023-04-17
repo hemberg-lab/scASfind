@@ -60,8 +60,11 @@ CELL_TYPE_COL <- opt$cell_type_col
 ########################
 
 # build original PSI matrix from MicroExonator output file *.psi.tsv
+# first build scaled matrix
 
 message("Start building inputs for scASfind index")
+
+tryCatch({
 
 data <- readr::read_tsv(INPUT, col_names = TRUE, progress = show_progress())
 
@@ -96,8 +99,22 @@ matrix.scaled_diff <- matrix.scaled_diff * 100
 
 matrix.scaled_diff <- matrix.scaled_diff[which(rowSums(is.na(matrix.scaled_diff)) < ncol(matrix.scaled_diff)), ]
 matrix.scaled_diff_selected <- data.frame(row.names = rownames(matrix.scaled_diff))
+# save results
+
+message("Saving scaled original PSI matrix")
+saveRDS(matrix.scaled_diff_selected, paste(OUTPUT, "_matrix_scaled_diff_selected.rds", sep = ""))
+
+
+}, error = function(e){
+
+  stop("Build scaled original PSI matrix not success, exit script")
+
+})
+
 
 # initialize diff_cut matrix to store index of nodes with PSI = dataset mean, to distinguish from nodes with PSI not quantified
+
+tryCatch({
 diff_cut <- matrix(0, nrow = nrow(matrix.scaled_diff), ncol = ncol(matrix.scaled_diff))
 
 # keep only values with above psi_diff_cutoff
@@ -146,8 +163,21 @@ for (cell in seq(1, ncol(matrix.scaled_diff_selected))) {
 }
 matrix.below <- matrix.below * (-1)
 
-# get mean and SD per node
+message("Saving above and below PSI matrices")
 
+saveRDS(matrix.above, paste(OUTPUT, "_matrix_above.rds", sep = ""))
+saveRDS(matrix.below, paste(OUTPUT, "_matrix_below.rds", sep = ""))
+saveRDS(diff_cut, paste(OUTPUT, "_diff_cut.rds", sep = ""))
+
+
+}, error = function(e){
+
+  stop("Build above and below PSI matrices did not success, exit script")
+
+})
+
+# get mean and SD per node
+tryCatch({
 df <- data.frame(matrix.original, row.names = matrix.original$Gene_node)
 dm <- as.matrix(df[, -1])
 mean <- transform(dm, mean = apply(dm, 1, mean, na.rm = TRUE))
@@ -158,8 +188,17 @@ stats <- mean[, c("mean", "SD")]
 
 stats <- stats[which(rownames(stats) %in% rownames(matrix.scaled_diff_selected)), ]
 
-# get node annotations from ENSEMBL
+message("Saving node stats metadata")
+saveRDS(stats, paste(OUTPUT, "_stats.rds", sep = ""))
 
+}, error = function(e){
+
+  stop("Build stats metadata did not success, exit script")
+})
+
+
+# get node annotations from ENSEMBL
+tryCatch({
 node_list <- rownames(matrix.scaled_diff_selected)
 
 message("Read node information...")
@@ -188,14 +227,14 @@ names(gene_node_all)[names(gene_node_all) == "external_gene_name"] <- "Gene_name
 names(gene_node_all)[names(gene_node_all) == "Gene_node"] <- "Node_id"
 gene_node_all$Node_name <- paste(gene_node_all$Gene_name, gene_node_all$Node, sep = "_")
 
-message("Save results...")
-
-saveRDS(matrix.scaled_diff_selected, paste(OUTPUT, "_matrix_scaled_diff_selected.rds", sep = ""))
-saveRDS(matrix.above, paste(OUTPUT, "_matrix_above.rds", sep = ""))
-saveRDS(matrix.below, paste(OUTPUT, "_matrix_below.rds", sep = ""))
-saveRDS(diff_cut, paste(OUTPUT, "_diff_cut.rds", sep = ""))
-saveRDS(stats, paste(OUTPUT, "_stats.rds", sep = ""))
+message("Saving node stats metadata")
 saveRDS(gene_node_all, paste(OUTPUT, "_gene_node_all.rds", sep = ""))
+
+
+}, error = function(e){
+
+  stop("Build node list metadata did not success, exit script")
+})
 
 
 
@@ -204,6 +243,7 @@ saveRDS(gene_node_all, paste(OUTPUT, "_gene_node_all.rds", sep = ""))
 ## Create scASfind index
 ########################
 
+tryCatch({
 meta <- readr::read_tsv(METADATA)
 rownames(meta) <- meta$cell_id
 
@@ -232,3 +272,8 @@ if (!(CELL_TYPE_COL %in% colnames(meta))) {
 
   message("Finish creating scASfind index")
 }
+
+}, error = function(e){
+
+  stop("Failed to build scASfind index, input data were saved, please re-build index using input data")
+})
