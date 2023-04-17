@@ -102,7 +102,7 @@ matrix.scaled_diff_selected <- data.frame(row.names = rownames(matrix.scaled_dif
 # save results
 
 message("Saving scaled original PSI matrix")
-saveRDS(matrix.scaled_diff_selected, paste(OUTPUT, "_matrix_scaled_diff_selected.rds", sep = ""))
+saveRDS(matrix.scaled_diff_selected, paste(OUTPUT, "/", NAME, "_matrix_scaled_diff_selected.rds", sep = ""))
 
 
 }, error = function(e){
@@ -165,9 +165,9 @@ matrix.below <- matrix.below * (-1)
 
 message("Saving above and below PSI matrices")
 
-saveRDS(matrix.above, paste(OUTPUT, "_matrix_above.rds", sep = ""))
-saveRDS(matrix.below, paste(OUTPUT, "_matrix_below.rds", sep = ""))
-saveRDS(diff_cut, paste(OUTPUT, "_diff_cut.rds", sep = ""))
+saveRDS(matrix.above, paste(OUTPUT,  "/", NAME, "_matrix_above.rds", sep = ""))
+saveRDS(matrix.below, paste(OUTPUT,  "/", NAME, "_matrix_below.rds", sep = ""))
+saveRDS(diff_cut, paste(OUTPUT,  "/", NAME, "_diff_cut.rds", sep = ""))
 
 
 }, error = function(e){
@@ -189,7 +189,7 @@ stats <- mean[, c("mean", "SD")]
 stats <- stats[which(rownames(stats) %in% rownames(matrix.scaled_diff_selected)), ]
 
 message("Saving node stats metadata")
-saveRDS(stats, paste(OUTPUT, "_stats.rds", sep = ""))
+saveRDS(stats, paste(OUTPUT,  "/", NAME, "_stats.rds", sep = ""))
 
 }, error = function(e){
 
@@ -208,6 +208,8 @@ ni$Node_id <- paste(ni$Gene, ni$Node, sep = "_")
 
 node_list_all <- ni[which(ni$Node_id %in% node_list), ]
 node_list_all$Gene_num <- gsub("\\..*$", "", node_list_all$Gene)
+
+message(sample(node_list_all$Gene_num, size = 10))
 
 # install.packages('XML', repos = 'http://www.omegahat.net/R') BiocManager::install('biomaRt')
 
@@ -228,7 +230,7 @@ names(gene_node_all)[names(gene_node_all) == "Gene_node"] <- "Node_id"
 gene_node_all$Node_name <- paste(gene_node_all$Gene_name, gene_node_all$Node, sep = "_")
 
 message("Saving node stats metadata")
-saveRDS(gene_node_all, paste(OUTPUT, "_gene_node_all.rds", sep = ""))
+saveRDS(gene_node_all, paste(OUTPUT,  "/", NAME, "_gene_node_all.rds", sep = ""))
 
 
 }, error = function(e){
@@ -268,7 +270,7 @@ if (!(CELL_TYPE_COL %in% colnames(meta))) {
   # combine above and below index to final scASfind index object
   merged_idx <- scASfind::mergeDataset(object = above_idx_withmeta, new.object = below_idx)
 
-  scASfind::saveObject(merged_idx, paste(OUTPUT, "_combined_scASfind_index.rds", sep = ""))
+  scASfind::saveObject(merged_idx, paste(OUTPUT,  "_combined_scASfind_index.rds", sep = ""))
 
   message("Finish creating scASfind index")
 }
