@@ -225,7 +225,6 @@ setMethod("geneNodes",
 #' @return a dataframe that contains nodes for gene.list
 
 gene.node.sets <- function(object, gene.list, query.type, node.types = c("CE", "AA", "AD", "RI", NA, "NA")) {
-
   nodes <- gene.nodes(object, gene.list, query.type)
   nodes.new <- nodes[which(as.character(nodes$Type) %in% node.types), ]
 
@@ -332,7 +331,7 @@ get.raw.psi <- function(object, node.list, cell.types) {
     message(cell_type)
 
     raw_psi_ct <- get.cell.type.raw.psi(object, gene_nodes_all, cell_type)
-      
+
     colnames(raw_psi_ct) <- c(paste(cell_type, seq(1, ncol(raw_psi_ct)), sep = "_"))
     raw_psi_add <- raw_psi_ct %>%
       rownames_to_column("Node_id") %>%
@@ -701,12 +700,10 @@ cell.type.marker <- function(object, cell.types, background.cell.types, top.k, s
     sort.field <- "f1"
   }
   all.cell.types <- all.cell.types[order(all.cell.types[[sort.field]], decreasing = T)[1:top.k], ]
-  
-    if(!is.null(object@metadata$node_list)){
-        
-        all.cell.types <- merge(all.cell.types, object@metadata$node_list, by.x = 'nodes', by.y = 'Node_id', all.x = TRUE, all.y.= FALSE)
-        
-    }
+
+  if (!is.null(object@metadata$node_list)) {
+    all.cell.types <- merge(all.cell.types, object@metadata$node_list, by.x = "nodes", by.y = "Node_id", all.x = TRUE, all.y. = FALSE)
+  }
 
   return(all.cell.types)
 }

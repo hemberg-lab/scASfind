@@ -194,9 +194,9 @@ get.cell.type.raw.psi <- function(object, gene.list, cell.type) {
 
   ## prepare above and below scaled matrix by querying index
 
-  cell.type.above <- paste('above', cell.type, sep = ".")
+  cell.type.above <- paste("above", cell.type, sep = ".")
 
-  cell.type.below <- paste('below', cell.type, sep = ".")
+  cell.type.below <- paste("below", cell.type, sep = ".")
 
   cells_psi_above <- as.data.frame(object@index$getCellTypeExpression(cell.type.above))
 
@@ -258,8 +258,8 @@ get.cell.type.raw.psi <- function(object, gene.list, cell.type) {
       }
     }
   }
- 
-    # due to imprecise retrieval of PSI there could be values slightly beyond limit
+
+  # due to imprecise retrieval of PSI there could be values slightly beyond limit
   above[above > 1] <- 1
   above[above < 0] <- 0
 
