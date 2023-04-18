@@ -122,6 +122,7 @@ if (INDEX_ONLY) {
     },
     error = function(e) {
       stop("Build scaled original PSI matrix not success, exit script")
+      print(e)
     }
   )
 
@@ -186,6 +187,7 @@ if (INDEX_ONLY) {
     },
     error = function(e) {
       stop("Build above and below PSI matrices did not success, exit script")
+      print(e)
     }
   )
 
@@ -207,6 +209,7 @@ if (INDEX_ONLY) {
     },
     error = function(e) {
       stop("Build stats metadata did not success, exit script")
+      print(e)
     }
   )
 
@@ -249,6 +252,7 @@ if (INDEX_ONLY) {
     },
     error = function(e) {
       stop("Build node list metadata did not success, exit script")
+      print(e)
     }
   )
 }
@@ -291,6 +295,8 @@ tryCatch(
     }
   },
   error = function(e) {
+
     stop("Failed to build scASfind index, input data were saved, please re-build index using input data")
+    print(e)
   }
 )
