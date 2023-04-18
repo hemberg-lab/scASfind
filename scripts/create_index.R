@@ -121,8 +121,8 @@ if (INDEX_ONLY) {
       saveRDS(matrix.scaled_diff_selected, paste(OUTPUT, "/", NAME, "_matrix_scaled_diff_selected.rds", sep = ""))
     },
     error = function(e) {
+      message("Error: ", e$message)
       stop("Build scaled original PSI matrix not success, exit script")
-      print(e)
     }
   )
 
@@ -186,8 +186,8 @@ if (INDEX_ONLY) {
       saveRDS(diff_cut, paste(OUTPUT, "/", NAME, "_diff_cut.rds", sep = ""))
     },
     error = function(e) {
+      message("Error: ", e$message)
       stop("Build above and below PSI matrices did not success, exit script")
-      print(e)
     }
   )
 
@@ -208,8 +208,8 @@ if (INDEX_ONLY) {
       saveRDS(stats, paste(OUTPUT, "/", NAME, "_stats.rds", sep = ""))
     },
     error = function(e) {
+      message("Error: ", e$message)
       stop("Build stats metadata did not success, exit script")
-      print(e)
     }
   )
 
@@ -251,8 +251,8 @@ if (INDEX_ONLY) {
       saveRDS(gene_node_all, paste(OUTPUT, "/", NAME, "_gene_node_all.rds", sep = ""))
     },
     error = function(e) {
+      message("Error: ", e$message)
       stop("Build node list metadata did not success, exit script")
-      print(e)
     }
   )
 }
@@ -295,8 +295,7 @@ tryCatch(
     }
   },
   error = function(e) {
-
+    message("Error: ", e$message)
     stop("Failed to build scASfind index, input data were saved, please re-build index using input data")
-    print(e)
   }
 )
