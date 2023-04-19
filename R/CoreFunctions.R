@@ -219,6 +219,8 @@ get.cell.type.raw.psi <- function(object, gene.list, cell.type) {
   )
   colnames(dd) <- colnames(scaled_psi_above)
 
+  # scale back
+
   above <- rbind(dd, scaled_psi_above)[gene.list, ] * 0.01
 
 

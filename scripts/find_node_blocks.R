@@ -163,7 +163,7 @@ for (gene in all_genes) {
           # if the block is significant in some cell types, add it to the results
 
           if (condition == TRUE) {
-            message(paste("add block No. ", block_num, sep = ""))
+            message(paste("add block No. ", block_num, " of gene: ", gene, sep = ""))
 
             sig_cell_types <- scASfind::hyperQueryCellTypes(index, test_comb$Node_id) %>% filter(pval < 0.05)
 
@@ -192,7 +192,7 @@ for (gene in all_genes) {
 
             SD <- tbl[i, "SD"]
 
-            # no need to update block num becayse no new block is added in this gene
+            # no need to update block num because no new block is added in this gene
 
             new_block <- data.frame()
 

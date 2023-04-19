@@ -13,8 +13,8 @@ suppressPackageStartupMessages(library(biomaRt))
 
 option_list <- list(
   make_option(c("-n", "--data_name"), type = "character", default = NULL, help = "Name of dataset"),
-  make_option(c("-p", "--pseudobulk_psi"),
-    type = "character", default = NULL, help = "Combined pseudobulk psi matrix as input, usually with .psi.tsv extensions, tab-deliminated"
+  make_option(c("-p", "--cell_pools_psi"),
+    type = "character", default = NULL, help = "Combined cell pools psi matrix as input, usually with .psi.tsv extensions, tab-deliminated"
   ),
   make_option(c("-i", "--node_info"),
     type = "character", default = NULL, help = "Node information input from Whippet, tab-deliminated"
@@ -33,7 +33,7 @@ option_list <- list(
   ),
   make_option(c("-m", "--metadata"),
     type = "character", default = NULL,
-    help = "Metadata file linking cell number to cell type to create scASfind index, must contain a column 'cell_id' indicating cell id matching the pseudobulk_psi file, tab-deliminated"
+    help = "Metadata file linking cell number to cell type to create scASfind index, must contain a column 'cell_id' indicating cell id matching the cell_pools_psi file, tab-deliminated"
   ),
   make_option(c("-c", "--cell_type_col"),
     type = "character", default = NULL,
@@ -49,7 +49,7 @@ option_list <- list(
 opt <- parse_args(OptionParser(option_list = option_list))
 
 NAME <- opt$data_name
-INPUT <- opt$pseudobulk_psi
+INPUT <- opt$cell_pools_psi
 NODE <- opt$node_info
 OUTPUT <- opt$output
 NUM_READS_MIN <- opt$num_reads_min
@@ -266,16 +266,22 @@ if (INDEX_ONLY) {
 tryCatch(
   {
     meta <- readr::read_tsv(METADATA)
-    rownames(meta) <- meta$cell_id
 
-    if (!(CELL_TYPE_COL %in% colnames(meta))) {
-      warning(paste0("Column indicating cell type ", CELL_TYPE_COL, " not in metadata, please check"))
-      message("Exit script, please re-build index from the constructed matrices")
+    if (!c("cell_id") %in% colnames(meta)) {
+      stop("\"cell id\" column not in metadata, please specify. Exit script, please re-build index from the constructed matrices")
+    } else if (!(CELL_TYPE_COL %in% colnames(meta))) {
+      stop(paste0("Column indicating cell type ", CELL_TYPE_COL, " not in metadata, please check", "Exit script, please re-build index from the constructed matrices"))
     } else {
+      rownames(meta) <- meta$cell_id
 
       # match cell ids
       meta <- meta[which(rownames(meta) %in% colnames(matrix.above)), ]
       meta <- meta[match(colnames(matrix.above), rownames(meta)), ]
+
+      if (nrow(meta) != ncol(matrix.above)) {
+        message("Some cell pools do not have metadata")
+        warning(paste0("Metadata have ", nrow(meta), " cell pools matching the input PSI matrix, compared with ", ncol(matrix.above), " cell pools in total"))
+      }
 
       # make above index
       above_idx <- scASfind::buildAltSpliceIndex(psival = matrix.above, metadata = meta, dataset.name = "above", column.label = CELL_TYPE_COL, qb = 2)
