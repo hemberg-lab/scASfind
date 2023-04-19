@@ -266,6 +266,7 @@ if (INDEX_ONLY) {
 tryCatch(
   {
     meta <- readr::read_tsv(METADATA)
+    meta <- as.data.frame(meta) # for being able to set row names
 
     if (!c("cell_id") %in% colnames(meta)) {
       stop("\"cell id\" column not in metadata, please specify. Exit script, please re-build index from the constructed matrices")
