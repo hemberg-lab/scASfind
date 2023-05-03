@@ -16,6 +16,7 @@ library(scASfind)
 ```
 ## User guide
 Please refer to the `scASfind` package [Vignette](https://github.com/hemberg-lab/scASfind/blob/master/vignettes/example_workflow.ipynb) for a detailed user guide.
+The example scASfind index can be downloaded [here](https://drive.google.com/file/d/1dsaNOJKJN6PQQME1s0CMRPheiR94qkjv/view?usp=sharing) (too big).
 
 ## Contact
-Please contact Miss Yuyao Song (ys585@cam.ac.uk) for any enquiries or bug reports.
+Please contact Yuyao Song (ys585@cam.ac.uk) for any enquiries or bug reports.
