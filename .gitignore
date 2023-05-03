@@ -11,4 +11,5 @@ scripts/*.tsv
 .Rproj
 inst/doc
 scripts/*.rds
+data/*.rds
 plots/
