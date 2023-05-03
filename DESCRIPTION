@@ -36,7 +36,6 @@ Collate:
     'CoreFunctions.R'
     'CoreMethods.R'
     'Tasic_2016.R'
-    'ggplot_themes.R'
     'zzz.R'
 Suggests: 
     knitr
