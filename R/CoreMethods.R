@@ -313,13 +313,14 @@ setMethod("getCoordinatedNodes",
 #' @param object the \code{SCFind} object
 #' @param node.list several nodes that we wish to get the raw PSI
 #' @param cell.types cell type tp query, can only query one cell type at once
+#' @param verbose message 
 #' @return a dataframe that contains raw psi value in the queried cell type of the gene.list
 #' @importFrom magrittr %>%
 #' @importFrom tidyr pivot_longer
 #' @importFrom tibble rownames_to_column
 #'
 
-get.raw.psi <- function(object, node.list, cell.types) {
+get.raw.psi <- function(object, node.list, cell.types, verbose) {
   cell_types_all <- cell.types
 
   gene_nodes_all <- node.list
@@ -328,7 +329,6 @@ get.raw.psi <- function(object, node.list, cell.types) {
 
 
   for (cell_type in cell_types_all) {
-    message(cell_type)
 
     raw_psi_ct <- get.cell.type.raw.psi(object, gene_nodes_all, cell_type)
 
@@ -342,7 +342,7 @@ get.raw.psi <- function(object, node.list, cell.types) {
       raw_psi <- rbind(raw_psi, raw_psi_add)
     }
 
-    message(paste("Added", cell_type, sep = " "))
+    if (verbose) { message(paste("Added", cell_type, sep = " ")) }
   }
 
   details <- nodeDetails(object, gene_nodes_all)
@@ -358,7 +358,8 @@ setMethod("getRawPsi",
   signature(
     object = "SCFind",
     node.list = "character",
-    cell.types = "character"
+    cell.types = "character",
+    verbose = "logical"
   ),
   definition = get.raw.psi
 )

@@ -96,7 +96,8 @@ setGeneric(
   name = "getRawPsi",
   def = function(object,
                  node.list,
-                 cell.types) {
+                 cell.types,
+                 verbose) {
     standardGeneric("getRawPsi")
   }
 )
