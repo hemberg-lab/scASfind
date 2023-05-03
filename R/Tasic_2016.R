@@ -1,8 +1,8 @@
 #' Example SCFind alternative splicing index
-#' `Tasic_2016` Example SCFind alternative splicing index data for mouse glutamatergic and GABA-ergic neurons
+#' `Mouse_cortex` Example alternative splicing index data for mouse glutamatergic and GABA-ergic neurons
 #' @docType data
 #'
-#' @usage data(Tasic_2016)
+#' @usage data(index)
 #'
 #' @format url to retrieve SCfind indexes.
 #'
@@ -12,4 +12,6 @@
 #'
 #' @references Allan Brain Atlas (https://www.nature.com/articles/nn.4216)).
 
-"Tasic_2016"
+"index"
+
+

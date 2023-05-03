@@ -9,9 +9,6 @@ scripts/*.tsv
 .ipynb_checkpoints
 .Rbuildignore
 .Rproj
-.rds
 inst/doc
-data/
-.rds
 scripts/*.rds
 plots/
