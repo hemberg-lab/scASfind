@@ -1,0 +1,314 @@
+---
+title: "scASfind tutorial"
+author: "Yuyao Song"
+date: "`r Sys.Date()`"
+output: html_document
+vignette: >
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteIndexEntry{scGOclust_vignette}
+  %\usepackage[UTF-8]{inputenc}
+---
+
+
+# Identification of cell type-specific alternative splicing events using scASfind
+
+## Example analysis workflow
+
+**Author:**  
+Yuyao Song  <ys585@cam.ac.uk>
+
+**Date:**  
+May 2023 
+
+## 1. Set up
+
+### 1.1 Install package
+
+```{r}
+# to install the latest release from GitHub
+# install.packages("devtools")
+# library(devtools)
+# devtools::install_github("hemberg-lab/scASfind")
+library(scASfind)
+```
+
+### 1.2 Load packages
+
+```{r}
+# load the package scASfind
+# also load packages for data manipulation and visualization
+
+library(tibble)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(repr)
+```
+
+```{r}
+# a useful function for setting figure size
+
+library(repr)
+fig <- function(width, heigth){
+     options(repr.plot.width = width, repr.plot.height = heigth)
+}
+
+# alternative load and save function if using .rda format for index storage
+# this is to better comply with R package data standards
+
+load_rda_index <- function(index_obj='index_obj.rda'){
+load(index_obj)
+index_obj@index <-  new(EliasFanoDB)
+index_obj@index$loadByteStream(index_obj@serialized)
+return(index_obj)
+}
+
+save_rda_index <- function(index_obj){
+index_obj@serialized <- index_obj@index$getByteStream()
+save(index_obj, file = 'index_obj.rda')
+# Clear the serialized stream
+index_obj@serialized <- raw()
+gc()
+}
+```
+
+### 1.3 Load or create index {.tabset}
+#### Load example index
+
+```{r, results='hide',  message=FALSE}
+# These are the pre-built indices using the Tasic et al.(2016) dataset
+# The dataset have detailed subtype classifications of glutamatergic neurons and GABA-ergic neurons in the mouse primary visual cortex
+
+## recommended load function from scASfind is:
+#index <- loadObject("../data/tasic2016_scASfind_index.rds")
+
+## for this vignette
+index <- load_rda_index('../data/index_obj.rda')
+
+```
+
+```{r}
+# the index is a SCFind class object
+class(index)
+
+# the object contains four attributes
+slotNames(index)
+
+# the metadata attribute further stores splicing-related information for comprehending the results
+## stats stores the mean and SD of the PSI for each node in the index
+## node_list stores node related annotations
+## diff_cut is a binary matrix to store if the difference of the PSI in a particular pesudobulk and the mean PSI across all pseudobulks is above the cut-off during index building (default 0.2)
+## this is to distinguish between PSI = NA (the junction is unquantified), or the PSI of a node is not sufficiently different from dataset mean (PSI ~ mean_PSI) during raw PSI retrieval from index. Both circumstance is treated as 0 in the splicing matrix and compressed during index building
+
+names(index@metadata)
+```
+
+```{r}
+index@index
+```
+
+```{r}
+## the above dataset stores splicing events that has a PSI above tissue average
+## the below dataset stores splicing events that has a PSI below tissue average
+
+index@datasets
+```
+#### Create custom index
+
+```{r}
+## to build custom scASfind index from scratch, run the create_index.R script in scASfind/scripts
+## this will create the below outputs that we load here
+```
+
+```{r}
+## first read in all the matrix generated from running build_matrix_original.R
+load("../data/tasic_test_matrix_above.rda")
+load("../data/tasic_test_stats.rda")
+load("../data/tasic_test_gene_node_all.rda")
+load("../data/tasic_test_diff_cut.rda")
+load("../data/tasic_metadata.rda")
+```
+
+```{r}
+# make sure all pseudobulks are in metadata
+nrow(meta[which(!(meta$pseudo_bulk_ID_new %in% colnames(matrix.above))), ]) == 0
+```
+
+```{r}
+levels(factor(meta$cell_type))
+```
+
+```{r}
+meta = meta[match(colnames(matrix.above), meta$pseudo_bulk_ID_new), ]
+```
+
+```{r}
+## make sure that the order of cell in metadata is the same with order of cell in PSI matrix
+identical(meta$pseudo_bulk_ID_new, colnames(matrix.above))
+```
+
+```{r}
+## build the index for spliced-in events, denoted by 'above' i.e. PSI is above dataset average
+idx_above <- buildAltSpliceIndex(psival = matrix.above, metadata = meta, dataset.name = 'above', column.label = 'cell_type', qb = 2)
+```
+
+```{r}
+idx_above <- addIndexMeta(object = idx_above, stats = stats, node_list = node_list, diff_cut = diff_cut)
+```
+
+### {-}
+## 2. Exploratory analysis
+
+```{r}
+# first, check the encoded cell types
+cell_types <- cellTypeNames(index)
+cell_types
+```
+
+```{r}
+# check the encoded genes
+head(scfindNodes(object = index))
+```
+
+### 2.1 Search marker nodes of an interested cell type
+
+```{r}
+interested_cell_type <- "above.Astro_Gja1"
+
+# rank the splicing nodes by their frequency of inclusion that is above dataset mean in the interested cell type
+
+markers <- cellTypeMarkers(index, interested_cell_type, background.cell.types = cellTypeNames(index, datasets = 'above'), top.k = 20)
+markers
+```
+
+```{r}
+# plot the nodes using their precision. recall and f1 scores to examine
+
+ggplot(markers, aes(x = precision, y = recall, colour = f1, label = Node_name)) +
+theme_bw() + 
+geom_point(aes(size = f1)) +
+geom_text(vjust = 0, 
+          nudge_y = 0.01, 
+          colour = "black", 
+          check_overlap = T) +
+xlim(0.4, 1.2)
+
+fig(6, 6)
+```
+
+```{r}
+## get the annotations of query nodes
+## use the markers of interested cell type as example
+nodeDetails(index, as.character(markers$nodes))
+```
+
+### 2.2 Search cell types enriched in an interested splicing event
+
+```{r}
+# find all nodes in a particular gene
+
+Gria2_nodes <- geneNodes(index, "Gria2", "Gene_name")
+Gria2_nodes <- Gria2_nodes[order(as.numeric(as.character(Gria2_nodes$Node))), ]
+Gria2_nodes
+```
+
+```{r}
+# query significant cell types by a specific splicing event
+## accept logical operators: prepend "-" means node exclusion
+
+Gria2_mxe <- c("ENSMUSG00000033981.14_28", "ENSMUSG00000033981.14_29")
+hyperQueryCellTypes(index, c("ENSMUSG00000033981.14_28", "-ENSMUSG00000033981.14_29"), datasets = 'above') %>% arrange(pval)
+```
+
+### 2.3 Retrieve actual PSI for discovered splicing patterns
+
+```{r}
+## check the raw PSI value of query nodes in particular cell types, return a dataframe with cell type, node raw PSI and node details
+
+raw_psi = getRawPsi(object = index, node.list = Gria2_mxe, cell.types = gsub("above\\.", "", cellTypeNames(index, datasets = 'above')), verbose = FALSE)
+head(raw_psi)
+```
+
+### 2.4 Heatmap of PSI value of a splicing pattern
+
+```{r}
+## generate a heatmap for raw PSI values
+
+plotRawPsiHeatmap(raw_psi = raw_psi, node.list = Gria2_mxe, cell.types = gsub("above\\.", "", cellTypeNames(index, datasets = 'above')))
+
+fig(6, 10)
+```
+### 2.5 Find nodes with a similar splicing pattern with query nodes
+
+```{r, results='hide', message=FALSE}
+## takes a few seconds to run
+similar_nodes = findSimilarNodes(object = index, node.list = Gria2_mxe[1], datasets = 'above', top.k = 10)
+```
+```{r}
+head(similar_nodes)
+```
+
+### 2.6 find house keeping nodes in a particular group of cell types
+
+```{r}
+above_glul5 = cell_types[grep("above\\.L5", cell_types)]
+above_glul5
+```
+
+
+```{r}
+## use L5 glutamatergic neurons as example
+
+above_glul5_nodes = findHouseKeepingNodes(object = index, cell.types = above_glul5)
+above_glul5_nodes
+```
+
+```{r}
+# show annotation of splicing nodex
+nodeDetails(object = index, node.list = above_glul5_nodes)
+```
+
+### 2.7 Find signature splicing events for particular cell types
+```{r}
+
+findNodeSignatures(object = index, cell.types = above_glul5)
+```
+
+### 2.8 find all cells per cell type that express the full set of nodes in gene.list
+```{r}
+
+findCellTypes(object = index, gene.list = Gria2_mxe[1], datasets = 'above')
+```
+
+
+### 2.9 long query optimization routine
+
+```{r}
+## look at all nodes in Gria2 gene, this is what we want to shorten to find nodes that are cell type specific
+Gria2_nodes$Node_id
+```
+
+```{r}
+# long query optimization function, finds node sets that are significantly enriched in some cell types
+Gria2_markers = markerNodes(object = idx_above, gene.list = Gria2_nodes$Node_id, log.message = FALSE)
+head(Gria2_markers)
+```
+
+```{r}
+getCoordinatedNodes(object = idx_above, gene.name = 'Gria2')
+```
+
+```{r}
+# another function to find cell type specific nodex, for specific node types in certain gene
+findNodeSets(object = idx_above, gene.list = c("Golgb1"), query.type = 'Gene_name', node.types = c("CE", "AA", 'AD', 'RI', NA))
+```
+
+
+```{r}
+sessionInfo()
+```
+
+```{r}
+rm()
+```
+
