@@ -274,7 +274,7 @@ nodeDetails(object = index, node.list = above_glul5_nodes)
 findNodeSignatures(object = index, cell.types = above_glul5)
 ```
 
-### 2.8 find all cells per cell type that express the full set of nodes in gene.list
+### 2.8 find all cells per cell type that express the full set of nodes in some genes
 ```{r}
 
 findCellTypes(object = index, gene.list = Gria2_mxe[1], datasets = 'above')
@@ -290,16 +290,17 @@ Gria2_nodes$Node_id
 
 ```{r}
 # long query optimization function, finds node sets that are significantly enriched in some cell types
-Gria2_markers = markerNodes(object = idx_above, gene.list = Gria2_nodes$Node_id, log.message = FALSE)
+Gria2_markers = markerNodes(object = idx_above, node.list = Gria2_nodes$Node_id, log.message = FALSE)
 head(Gria2_markers)
 ```
 
 ```{r}
+# get coordinated nodes in a gene
 getCoordinatedNodes(object = idx_above, gene.name = 'Gria2')
 ```
 
 ```{r}
-# another function to find cell type specific nodex, for specific node types in certain gene
+# another function to find cell type specific node sets, return cell types enriched in the patterns found
 findNodeSets(object = idx_above, gene.list = c("Golgb1"), query.type = 'Gene_name', node.types = c("CE", "AA", 'AD', 'RI', NA))
 ```
 

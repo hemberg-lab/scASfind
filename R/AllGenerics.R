@@ -192,7 +192,7 @@ setGeneric(name = "saveObject", function(object, file) {
 #'
 #' @export
 
-setGeneric(name = "markerNodes", function(object, gene.list, datasets, log.message = 0) {
+setGeneric(name = "markerNodes", function(object, node.list, datasets, log.message = 0) {
   standardGeneric("markerNodes")
 })
 

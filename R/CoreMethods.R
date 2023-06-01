@@ -235,7 +235,7 @@ gene.node.sets <- function(object, gene.list, query.type, node.types = c("CE", "
     return(NA)
   }
 
-  markers <- markerNodes(object, as.character(nodes.new$Node_id))
+  markers <- markerNodes(object, node.list=as.character(nodes.new$Node_id))
   if (nrow(markers) == 0) stop("No gene pattern is found")
   sets <- data.frame()
 
@@ -286,7 +286,7 @@ setMethod("findNodeSets",
 #' @importFrom dplyr arrange slice_head filter slice_max
 #'
 get_coordinated_nodes <- function(object, gene.name) {
-  query <- markerNodes(index, geneNodes(index, gene.name, query.type = "Gene_name")$Node_id) %>%
+  query <- markerNodes(index, node.list=geneNodes(index, gene.name, query.type = "Gene_name")$Node_id) %>%
     arrange(desc(tfidf)) %>%
     slice_head(n = 30) %>%
     filter(Cells == Mode(Cells)) %>%
@@ -313,7 +313,7 @@ setMethod("getCoordinatedNodes",
 #' @param object the \code{SCFind} object
 #' @param node.list several nodes that we wish to get the raw PSI
 #' @param cell.types cell type tp query, can only query one cell type at once
-#' @param verbose message 
+#' @param verbose message
 #' @return a dataframe that contains raw psi value in the queried cell type of the gene.list
 #' @importFrom magrittr %>%
 #' @importFrom tidyr pivot_longer
@@ -654,13 +654,13 @@ setMethod(
 #' that otherwise would have no cell hits in the database
 #'
 #' @param object SCFind object
-#' @param gene.list A list of nGenes existing in the database
+#' @param node.list A list of splicing nodes existing in the database
 #' @param datasets the datasets of the objects to be considered
 #' @param log.message whether to print a verbose message
 #'
 #' @name markerNodes
 #' @return hierarchical list of queries and their respective scores
-find.marker.nodes <- function(object, gene.list, datasets, log.message = 0) {
+find.marker.nodes <- function(object, node.list, datasets, log.message = 0) {
   datasets <- select.datasets(object, datasets)
   results <- object@index$findMarkerGenes(as.character(caseCorrect(object, gene.list)), as.character(datasets), 5, log.message)
   return(results)
@@ -673,7 +673,7 @@ setMethod(
   "markerNodes",
   signature(
     object = "SCFind",
-    gene.list = "character"
+    node.list = "character"
   ),
   find.marker.nodes
 )

@@ -6,16 +6,16 @@
 \alias{markerNodes,SCFind,character-method}
 \title{Performs query optimization and return the best candidate gene sets}
 \usage{
-markerNodes(object, gene.list, datasets, log.message = 0)
+markerNodes(object, node.list, datasets, log.message = 0)
 
-find.marker.nodes(object, gene.list, datasets, log.message = 0)
+find.marker.nodes(object, node.list, datasets, log.message = 0)
 
-\S4method{markerNodes}{SCFind,character}(object, gene.list, datasets, log.message = 0)
+\S4method{markerNodes}{SCFind,character}(object, node.list, datasets, log.message = 0)
 }
 \arguments{
 \item{object}{SCFind object}
 
-\item{gene.list}{A list of nGenes existing in the database}
+\item{node.list}{A list of splicing nodes existing in the database}
 
 \item{datasets}{the datasets of the objects to be considered}
 

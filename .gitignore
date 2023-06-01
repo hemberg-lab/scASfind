@@ -13,3 +13,5 @@ inst/doc
 scripts/*.rds
 data/*.rds
 plots/
+.DS_Store
+data/.DS_Store
