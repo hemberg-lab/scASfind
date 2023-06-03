@@ -46,13 +46,6 @@ library(repr)
 ```
 
 ```{r}
-# a useful function for setting figure size
-
-library(repr)
-fig <- function(width, heigth){
-     options(repr.plot.width = width, repr.plot.height = heigth)
-}
-
 # alternative load and save function if using .rda format for index storage
 # this is to better comply with R package data standards
 
@@ -97,7 +90,7 @@ slotNames(index)
 # the metadata attribute further stores splicing-related information for comprehending the results
 ## stats stores the mean and SD of the PSI for each node in the index
 ## node_list stores node related annotations
-## diff_cut is a binary matrix to store if the difference of the PSI in a particular pesudobulk and the mean PSI across all pseudobulks is above the cut-off during index building (default 0.2)
+## diff_cut is a binary matrix to store if the difference of the PSI in a particular cell pool and the mean PSI across all pseudobulks is above the cut-off during index building (default 0.2)
 ## this is to distinguish between PSI = NA (the junction is unquantified), or the PSI of a node is not sufficiently different from dataset mean (PSI ~ mean_PSI) during raw PSI retrieval from index. Both circumstance is treated as 0 in the splicing matrix and compressed during index building
 
 names(index@metadata)
@@ -181,7 +174,7 @@ markers <- cellTypeMarkers(index, interested_cell_type, background.cell.types = 
 markers
 ```
 
-```{r}
+```{r, fig.height=6, fig.width=6}
 # plot the nodes using their precision. recall and f1 scores to examine
 
 ggplot(markers, aes(x = precision, y = recall, colour = f1, label = Node_name)) +
@@ -193,7 +186,6 @@ geom_text(vjust = 0,
           check_overlap = T) +
 xlim(0.4, 1.2)
 
-fig(6, 6)
 ```
 
 ```{r}
@@ -214,7 +206,7 @@ Gria2_nodes
 
 ```{r}
 # query significant cell types by a specific splicing event
-## accept logical operators: prepend "-" means node exclusion
+## accept logical operators: prepend "-" to query means excluding this node
 
 Gria2_mxe <- c("ENSMUSG00000033981.14_28", "ENSMUSG00000033981.14_29")
 hyperQueryCellTypes(index, c("ENSMUSG00000033981.14_28", "-ENSMUSG00000033981.14_29"), datasets = 'above') %>% arrange(pval)
@@ -231,12 +223,12 @@ head(raw_psi)
 
 ### 2.4 Heatmap of PSI value of a splicing pattern
 
-```{r}
+```{r, fig.width=6, fig.height=10}
 ## generate a heatmap for raw PSI values
 
 plotRawPsiHeatmap(raw_psi = raw_psi, node.list = Gria2_mxe, cell.types = gsub("above\\.", "", cellTypeNames(index, datasets = 'above')))
 
-fig(6, 10)
+
 ```
 ### 2.5 Find nodes with a similar splicing pattern with query nodes
 
@@ -264,7 +256,7 @@ above_glul5_nodes
 ```
 
 ```{r}
-# show annotation of splicing nodex
+# show annotation of splicing nodes
 nodeDetails(object = index, node.list = above_glul5_nodes)
 ```
 
