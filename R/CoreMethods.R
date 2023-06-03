@@ -662,7 +662,7 @@ setMethod(
 #' @return hierarchical list of queries and their respective scores
 find.marker.nodes <- function(object, node.list, datasets, log.message = 0) {
   datasets <- select.datasets(object, datasets)
-  results <- object@index$findMarkerGenes(as.character(caseCorrect(object, gene.list)), as.character(datasets), 5, log.message)
+  results <- object@index$findMarkerGenes(as.character(caseCorrect(object, node.list)), as.character(datasets), 5, log.message)
   return(results)
 }
 
