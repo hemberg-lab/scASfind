@@ -257,7 +257,7 @@ if(file.exists(paste(OUTPUT, "/", NAME, "_matrix_above.rds", sep = "")) & file.e
       node_list_all <- ni[which(ni$Node_id %in% node_list), ]
       node_list_all$Gene_num <- gsub("\\..*$", "", node_list_all$Gene)
 
-      message(sample(node_list_all$Gene_num, size = 10))
+      # message(sample(node_list_all$Gene_num, size = 10))
 
       # install.packages('XML', repos = 'http://www.omegahat.net/R') BiocManager::install('biomaRt')
 
