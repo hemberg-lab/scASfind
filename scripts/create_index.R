@@ -9,7 +9,11 @@ suppressPackageStartupMessages(library(optparse))
 suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(Matrix))
 suppressPackageStartupMessages(library(biomaRt))
+suppressPackageStartupMessages(library(httr))
 
+
+# biomaRt known issue
+httr::set_config(httr::config(ssl_verifypeer = FALSE))
 
 option_list <- list(
   make_option(c("-n", "--data_name"), type = "character", default = NULL, help = "Name of dataset"),
@@ -69,7 +73,6 @@ INDEX_ONLY <- opt$index_only
 
 
 
-
 if (INDEX_ONLY) {
   message("Skip building input files and buind scASfind index only")
   matrix.above <- readRDS(paste(OUTPUT, "/", NAME, "_matrix_above.rds", sep = ""))
@@ -80,55 +83,67 @@ if (INDEX_ONLY) {
 } else {
   message("Start building inputs for scASfind index")
 
-  tryCatch(
-    {
-      data <- readr::read_tsv(INPUT, col_names = TRUE, progress = show_progress())
+  if (file.exists(paste(OUTPUT, "/", NAME, "_matrix_scaled_diff_selected.rds", sep = ""))) {
+    message("Read previopusly built original PSI matrix")
+    matrix.scaled_diff_selected <- readRDS(paste(OUTPUT, "/", NAME, "_matrix_scaled_diff_selected.rds", sep = ""))
+  } else {
+    tryCatch(
+      {
+        data <- readr::read_tsv(INPUT, col_names = TRUE, progress = show_progress())
 
-      message("Read PSI input, generating matrces...")
+        message("Read PSI input, generating matrces...")
 
-      matrix.original <- data %>%
-        tidyr::unite("Gene_node", Gene, Node, sep = "_") %>%
-        dplyr::group_by(Sample) %>%
-        dplyr::distinct(Gene_node, .keep_all = TRUE) %>%
-        dplyr::select(Sample, Gene_node, Total_Reads, Psi) %>%
-        dplyr::mutate(Filter = case_when(Total_Reads < NUM_READS_MIN ~ "DROP", Total_Reads >= NUM_READS_MIN ~ "KEEP", TRUE ~ NA_character_)) %>% ## keep only those PSI qualifications by >= NUM_READS_MIN as they have an acceptable confidence interval
-        dplyr::filter(Filter == "KEEP") %>%
-        dplyr::select(Sample, Gene_node, Psi) %>%
-        dplyr::ungroup(Sample) %>%
-        dplyr::group_by(Gene_node) %>%
-        tidyr::pivot_wider(names_from = Sample, values_from = Psi)
+        matrix.original <- data %>%
+          tidyr::unite("Gene_node", Gene, Node, sep = "_") %>%
+          dplyr::group_by(Sample) %>%
+          dplyr::distinct(Gene_node, .keep_all = TRUE) %>%
+          dplyr::select(Sample, Gene_node, Total_Reads, Psi) %>%
+          dplyr::mutate(Filter = case_when(Total_Reads < NUM_READS_MIN ~ "DROP", Total_Reads >= NUM_READS_MIN ~ "KEEP", TRUE ~ NA_character_)) %>% ## keep only those PSI qualifications by >= NUM_READS_MIN as they have an acceptable confidence interval
+          dplyr::filter(Filter == "KEEP") %>%
+          dplyr::select(Sample, Gene_node, Psi) %>%
+          dplyr::ungroup(Sample) %>%
+          dplyr::group_by(Gene_node) %>%
+          tidyr::pivot_wider(names_from = Sample, values_from = Psi)
 
-      message("Matrices constructed, performing scailing")
+        message("Matrices constructed, performing scailing")
 
-      df <- data.frame(matrix.original, row.names = matrix.original$Gene_node)
-      dm <- as.matrix(df[, -1])
-      mean <- rowMeans(dm, na.rm = TRUE)
+        df <- data.frame(matrix.original, row.names = matrix.original$Gene_node)
+        dm <- as.matrix(df[, -1])
+        mean <- rowMeans(dm, na.rm = TRUE)
 
-      # get differential from dataset mean PSI per node
+        # get differential from dataset mean PSI per node
 
-      matrix.scaled_diff <- dm - mean
+        matrix.scaled_diff <- dm - mean
 
-      # times a scale factor 100 for accurate encoding of absolute PSI values
-      matrix.scaled_diff <- matrix.scaled_diff * 100
+        # times a scale factor 100 for accurate encoding of absolute PSI values
+        matrix.scaled_diff <- matrix.scaled_diff * 100
 
-      # drop all-na rows
+        # drop all-na rows
 
-      matrix.scaled_diff <- matrix.scaled_diff[which(rowSums(is.na(matrix.scaled_diff)) < ncol(matrix.scaled_diff)), ]
-      matrix.scaled_diff_selected <- data.frame(row.names = rownames(matrix.scaled_diff))
-      # save results
+        matrix.scaled_diff <- matrix.scaled_diff[which(rowSums(is.na(matrix.scaled_diff)) < ncol(matrix.scaled_diff)), ]
+        matrix.scaled_diff_selected <- data.frame(row.names = rownames(matrix.scaled_diff))
+        # save results
 
-      message("Saving scaled original PSI matrix")
-      saveRDS(matrix.scaled_diff_selected, paste(OUTPUT, "/", NAME, "_matrix_scaled_diff_selected.rds", sep = ""))
-    },
-    error = function(e) {
-      message("Error: ", e$message)
-      stop("Build scaled original PSI matrix not success, exit script")
-    }
-  )
+        message("Saving scaled original PSI matrix")
+        saveRDS(matrix.scaled_diff_selected, paste(OUTPUT, "/", NAME, "_matrix_scaled_diff_selected.rds", sep = ""))
+      },
+      error = function(e) {
+        message("Error: ", e$message)
+        stop("Build scaled original PSI matrix not success, exit script")
+      }
+    )
+  }
 
 
   # initialize diff_cut matrix to store index of nodes with PSI = dataset mean, to distinguish from nodes with PSI not quantified
-
+if(file.exists(paste(OUTPUT, "/", NAME, "_matrix_above.rds", sep = "")) & file.exists(paste(OUTPUT, "/", NAME, "_matrix_below.rds", sep = "")) & file.exists(paste(OUTPUT, "/", NAME, "_diff_cut.rds", sep = ""))) {
+    message("Read previously built above, below and diff cut matrix")
+    
+    matrix.above <- readRDS(paste(OUTPUT, "/", NAME, "_matrix_above.rds", sep = ""))
+    matrix.below <- readRDS(paste(OUTPUT, "/", NAME, "_matrix_below.rds", sep = ""))
+    diff_cut <- readRDS(paste(OUTPUT, "/", NAME, "_diff_cut.rds", sep = ""))
+    
+} else {
   tryCatch(
     {
       diff_cut <- matrix(0, nrow = nrow(matrix.scaled_diff), ncol = ncol(matrix.scaled_diff))
@@ -190,8 +205,15 @@ if (INDEX_ONLY) {
       stop("Build above and below PSI matrices did not success, exit script")
     }
   )
+    }
 
   # get mean and SD per node
+    if(file.exists(paste(OUTPUT, "/", NAME, "_stats.rds", sep = ""))) {
+    message("Read previously built stats matrix")
+    
+    stats <- readRDS(paste(OUTPUT, "/", NAME, "_stats.rds", sep = ""))
+    
+} else {
   tryCatch(
     {
       df <- data.frame(matrix.original, row.names = matrix.original$Gene_node)
@@ -212,9 +234,17 @@ if (INDEX_ONLY) {
       stop("Build stats metadata did not success, exit script")
     }
   )
-
+}
 
   # get node annotations from ENSEMBL
+
+    if(file.exists(paste(OUTPUT, "/", NAME, "_gene_node_all.rds", sep = ""))) {
+    message("Read previously built node info matrix")
+    
+    gene_node_all <- readRDS(paste(OUTPUT, "/", NAME, "_gene_node_all.rds", sep = ""))
+    
+} else {
+               
   tryCatch(
     {
       node_list <- rownames(matrix.scaled_diff_selected)
@@ -256,6 +286,8 @@ if (INDEX_ONLY) {
     }
   )
 }
+    }
+              
 
 
 ########################
