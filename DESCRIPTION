@@ -38,5 +38,5 @@ Collate:
     'Tasic_2016.R'
     'zzz.R'
 Suggests: 
-    knitr
+    knitr, optparse
 VignetteBuilder: knitr
