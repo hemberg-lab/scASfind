@@ -328,7 +328,7 @@ tryCatch(
       # combine above and below index to final scASfind index object
       merged_idx <- scASfind::mergeDataset(object = above_idx_withmeta, new.object = below_idx)
 
-      scASfind::saveObject(merged_idx, paste(OUTPUT, "_combined_scASfind_index.rds", sep = ""))
+      scASfind::saveObject(merged_idx, paste(OUTPUT,  "/", NAME, "_combined_scASfind_index.rds", sep = ""))
 
       message("Finish creating scASfind index")
     }
