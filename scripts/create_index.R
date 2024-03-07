@@ -334,7 +334,7 @@ tryCatch(
     }
   },
   error = function(e) {
-    message("Error: ", e$message)
+    message(paste("Error: ", e$message))
     stop("Failed to build scASfind index, input data were saved, please re-build index using input data")
   }
 )
