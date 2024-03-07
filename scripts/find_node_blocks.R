@@ -54,7 +54,7 @@ pval_cutoff <- opt$pval_cutoff
 
 index <- loadObject(index_path)
 
-all_nodes <- scfindNodes(index)
+all_nodes = scfindNodes(index)
 
 all_genes <- levels(factor(nodeDetails(index, node.list = all_nodes)$Gene_name))
 
@@ -70,6 +70,8 @@ for (gene in all_genes) {
 
   # get all encoded nodes per gene
   nodes <- geneNodes(index, gene, "Gene_name")
+    
+  nodes <- nodes %>% filter(Node_id %in% all_nodes)
 
   # how many nodes are in between consecutive records
   tbl <- index@metadata$stats[which(rownames(index@metadata$stats) %in% nodes$Node_id), ] %>%

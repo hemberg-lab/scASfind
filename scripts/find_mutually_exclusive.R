@@ -59,8 +59,6 @@ stats$Node_id <- rownames(stats)
 
 node.list <- index@metadata$node_list
 
-all_genes <- as.character(levels(factor(node.list$Gene_name)))
-
 types <- str_split(types, ",") %>% flatten_chr()
 
 a <- merge(stats, node.list,
@@ -76,18 +74,21 @@ message("start processing all genes to find MXEs")
 
 node_num <- 1
 
-for (gene in all_genes) {
+for (gene in levels(factor(a$Gene_name))[nzchar(levels(factor(a$Gene_name)))]) {
+  message(gene)
   nodes <- geneNodes(index, gene, "Gene_name")
+  nodes <- nodes %>% filter(Node_name %in% a$Node_name)
   nodes$Type <- as.character(nodes$Type)
 
   ## a gene does not have nodes
   if (nrow(nodes) == 0) {
-    break
+    next
   }
 
   ## the gene has more than one node of specified types to check
   if (nrow(nodes) > 1) {
     nodes_check <- nodes[which(nodes$Type %in% types), "Node_id"]
+    message(nodes_check)
 
     ## test all possible pairs of nodes of specified types
     if (length(nodes_check) >= 2) {
@@ -98,55 +99,58 @@ for (gene in all_genes) {
         node_1 <- pairs[1, i]
         node_2 <- pairs[2, i]
 
-        a_1 <- a[which(a$node_id %in% node_1), ]
+        a_1 <- a[which(a$Node_id %in% node_1), ]
 
-        a_2 <- a[which(a$node_id %in% node_2), ]
+        a_2 <- a[which(a$Node_id %in% node_2), ]
 
-        # two mutually exclusive patterns
 
-        test_comb <- c(node_1, paste("-", node_2, sep = ""))
+        if (nrow(a_1 > 0) & nrow(a_2) > 0) {
+          # two mutually exclusive patterns
 
-        test_comb_2 <- c(node_2, paste("-", node_1, sep = ""))
+          test_comb <- c(node_1, paste("-", node_2, sep = ""))
+          message(test_comb)
 
-        # first filter by mean and SD
+          test_comb_2 <- c(node_2, paste("-", node_1, sep = ""))
 
-        if ((1 - mean_cutoff) <= (a_1[1, "mean"] + a_2[1, "mean"]) &
-          (a_1[1, "mean"] + a_2[1, "mean"]) <= (1 + mean_cutoff) &
-          abs(a_1[1, "SD"] - a_2[1, "SD"]) <= SD_cutoff) {
+          # first filter by mean and SD
 
-          # then test cell type specificity: at least in one cell type, one pattern is specific
+          if ((1 - mean_cutoff) <= (a_1[1, "mean"] + a_2[1, "mean"]) &
+            (a_1[1, "mean"] + a_2[1, "mean"]) <= (1 + mean_cutoff) &
+            abs(a_1[1, "SD"] - a_2[1, "SD"]) <= SD_cutoff) {
+            # then test cell type specificity: at least in one cell type, one pattern is specific
 
-          condition <- tryCatch(
-            {
-              suppressMessages(sum(scASfind::hyperQueryCellTypes(index, test_comb, datasets = "above")$pval < pval_cutoff) >= 1 | sum(scASfind::hyperQueryCellTypes(index, test_comb_2, datasets = "above")$pval < pval_cutoff) >= 1)
-            },
-            error = function(e) {
-              skip_to_next <<- TRUE
+            condition <- tryCatch(
+              {
+                suppressMessages(sum(scASfind::hyperQueryCellTypes(index, test_comb, datasets = "above")$pval < pval_cutoff) >= 1 | sum(scASfind::hyperQueryCellTypes(index, test_comb_2, datasets = "above")$pval < pval_cutoff) >= 1)
+              },
+              error = function(e) {
+                skip_to_next <<- TRUE
+              }
+            )
+
+            if (skip_to_next) {
+              next
+            } else if (condition == TRUE) {
+              # this is a potential mutually exclusive exon
+
+              message("find a mutually exclusive exon pair that is cell type specific")
+
+              if (sum(scASfind::hyperQueryCellTypes(index, test_comb, datasets = "above")$pval < pval_cutoff) >= 1 & sum(scASfind::hyperQueryCellTypes(index, test_comb_2, datasets = "above")$pval < pval_cutoff) >= 1) {
+                sig_cell_types <- suppressMessages(rbind(scASfind::hyperQueryCellTypes(index, test_comb, datasets = "above") %>% filter(pval < pval_cutoff), scASfind::hyperQueryCellTypes(index, test_comb_2, datasets = "above") %>% filter(pval < pval_cutoff)))
+              } else if (sum(scASfind::hyperQueryCellTypes(index, test_comb, datasets = "above")$pval < pval_cutoff) >= 1) {
+                sig_cell_types <- suppressMessages(scASfind::hyperQueryCellTypes(index, test_comb, datasets = "above") %>% filter(pval < pval_cutoff))
+              } else if (sum(scASfind::hyperQueryCellTypes(index, test_comb_2, datasets = "above")$pval < pval_cutoff) >= 1) {
+                sig_cell_types <- suppressMessages(scASfind::hyperQueryCellTypes(index, test_comb_2, datasets = "above") %>% filter(pval < pval_cutoff))
+              }
+
+              add <- rbind(a_1, a_2)
+              add <- merge(add, sig_cell_types)
+              add$node_num <- node_num
+
+              # count the occurance of MXE pairs in this gene
+              node_num <- node_num + 1
+              d <- rbind(d, add)
             }
-          )
-
-          if (skip_to_next) {
-            next
-          } else if (condition == TRUE) {
-            # this is a potential mutually exclusive exon
-
-            message("find a mutually exclusive exon pair that is cell type specific")
-
-            if (sum(scASfind::hyperQueryCellTypes(index, test_comb, datasets = "above")$pval < pval_cutoff) >= 1 & sum(scASfind::hyperQueryCellTypes(index, test_comb_2, datasets = "above")$pval < pval_cutoff) >= 1) {
-              sig_cell_types <- suppressMessages(rbind(scASfind::hyperQueryCellTypes(index, test_comb, datasets = "above") %>% filter(pval < pval_cutoff), scASfind::hyperQueryCellTypes(index, test_comb_2, datasets = "above") %>% filter(pval < pval_cutoff)))
-            } else if (sum(scASfind::hyperQueryCellTypes(index, test_comb, datasets = "above")$pval < pval_cutoff) >= 1) {
-              sig_cell_types <- suppressMessages(scASfind::hyperQueryCellTypes(index, test_comb, datasets = "above") %>% filter(pval < pval_cutoff))
-            } else if (sum(scASfind::hyperQueryCellTypes(index, test_comb_2, datasets = "above")$pval < pval_cutoff) >= 1) {
-              sig_cell_types <- suppressMessages(scASfind::hyperQueryCellTypes(index, test_comb_2, datasets = "above") %>% filter(pval < pval_cutoff))
-            }
-
-            add <- rbind(a_1, a_2)
-            add <- merge(add, sig_cell_types)
-            add$node_num <- node_num
-
-            # count the occurance of MXE pairs in this gene
-            node_num <- node_num + 1
-            d <- rbind(d, add)
           }
         }
       }
