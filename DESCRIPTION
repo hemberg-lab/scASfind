@@ -19,8 +19,7 @@ Authors@R:
            family = "Hemberg",
            role = c("aut"),
            email = "martin.hemberg@gmail.com"))
-Description: The emergence of large single cell RNA-seq datasets facilitates biological discoveries at single-cell resolution. For single cell atlas to be useful to users from all disciplines, it should be organized in an accessible way. 'scfind' builds an index for scRNA-seq datasets and allows fast inqueries involving cell types and feature lists. `scASfind` is built on top of scfind and it adaps scfind to alternative splicing analysis, in addition to gene expression. Quantification of single cell alternative splicing events are performed by `Whippet` integreted in the workflow `MicroExonator`..
-License: MIT + file LICENSE
+Description: This is a novel computational method to allow for quantitative analysis of cell type-specific splicing events using full-length single cell RNA-seq data. `scASfind` utilizes an efficient data structure to store the percent spliced-in value for each splicing event. This makes it possible to exhaustively search for patterns among all differential splicing events, allowing the identification of marker events, mutually exclusive events, and large blocks of exons that are specific to one or more cell types. The data compression strategy is adapted from `scfind` by Lee et al. (2021).
 Encoding: UTF-8
 LazyData: true
 Imports:
