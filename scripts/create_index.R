@@ -121,7 +121,7 @@ if (INDEX_ONLY) {
         # drop all-na rows
 
         matrix.scaled_diff <- matrix.scaled_diff[which(rowSums(is.na(matrix.scaled_diff)) < ncol(matrix.scaled_diff)), ]
-        matrix.scaled_diff_selected <- data.frame(row.names = rownames(matrix.scaled_diff))
+        matrix.scaled_diff_selected <- data.frame(matrix.scaled_diff, row.names = rownames(matrix.scaled_diff))
         # save results
 
         message("Saving scaled original PSI matrix")
