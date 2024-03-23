@@ -235,7 +235,7 @@ get.cell.type.raw.psi <- function(object, gene.list, cell.type) {
 
   for (i in seq(1, nrow(below))) {
     for (j in seq(1, ncol(below))) {
-      if (!is.na(below[i, j]) & (above[i, j] == 0)) {
+      if (!is.na(below[i, j]) & !is.na(above[i, j]) & (above[i, j] == 0)) {
         above[i, j] <- -1 * below[i, j]
       }
     }
