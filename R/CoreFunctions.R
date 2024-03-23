@@ -218,6 +218,7 @@ get.cell.type.raw.psi <- function(object, gene.list, cell.type) {
     row.names = gene.list[!(gene.list %in% rownames(scaled_psi_above))]
   )
   colnames(dd) <- colnames(scaled_psi_above)
+  dd[is.na(dd)] = 0
 
   # scale back
 
@@ -228,6 +229,7 @@ get.cell.type.raw.psi <- function(object, gene.list, cell.type) {
     row.names = gene.list[!(gene.list %in% rownames(scaled_psi_below))]
   )
   colnames(dd2) <- colnames(scaled_psi_below)
+  dd2[is.na(dd2)] = 0
 
   below <- rbind(dd2, scaled_psi_below)[gene.list, ] * 0.01
 
